@@ -18,8 +18,6 @@ import java.util.List;
 public class Rasterizer {
     public int screenWidth;
     public int screenHeight;
-    public int halfScreenWidth;
-    public int halfScreenHeight;
     public int screenSize;
 
     //屏幕的像素组
@@ -29,29 +27,14 @@ public class Rasterizer {
     public float[] zBuffer;
     public int[] msaaBuf;
 
-    //视角的原点到屏幕的距离 （以像素为单位）， 这个值越大视角就越狭窄。常用的值为屏宽的2/3
-    public int screenDistance = 815;
-
-    //未经变换的三角形顶点
-    public FMatrix3[] triangleVertices;
-
     //变换后的三角形顶点
     public FMatrix3[] updatedVertices;
     VertexShaderResult[] vertexShaderResults;
 
-    //三角形的顶点数, 一般为3。 但当三角形与视角的z平面相切的时候有可能会变成4个 。
-    public int verticesCount = 3;
 
     //三角形变换后的顶点投影在屏幕上的2D坐标
     public float[][] vertices2D = new float[4][2];
 
-    //用于扫描三角形填充区域的两个数组，每行有两个值，分别表示描线的起点和终点的 x 坐标
-    public int[] xLeft;
-    public int[] xRight;
-
-    //用于扫描三角形深度的两个数组，每行有两个值，分别表示描线的起点和终点的z值
-    public float[] zLeft;
-    public float[] zRight;
 
     //用于记录三角形顶点的深度值
     public float[] vertexDepth = new float[4];
@@ -68,9 +51,6 @@ public class Rasterizer {
     //三角形所在对象本身坐标系进行的平移变换
     public FMatrix3 localTranslation;
 
-    //三角形所在对象本身坐标系的旋转变换
-    public int localRotationX, localRotationY, localRotationZ;
-
     //辅助渲染计算的矢量类变量
     public FMatrix3 surfaceNormal, edge1, edge2, tempVector1, clippedVertices[];
 
@@ -78,23 +58,22 @@ public class Rasterizer {
     public boolean isClippingRightOrLeft;
 
     public static FMatrix4x4 projectionMatrix;
-    private static FragmentShader nowShader;
+    public static float[][] msaaOffsets = {
+        {0.25f, 0.25f},
+        {0.75f, 0.25f},
+        {0.25f, 0.75f},
+        {0.75f, 0.75f}
+    };
+    private FragmentShader nowShader;
 
-    public Rasterizer(int screenWidth, int screenHeight, int[] screen, float[] zBuffer){
+    public Rasterizer(int screenWidth, int screenHeight, int[] screen){
         this.screenHeight = screenHeight;
         this.screenWidth = screenWidth;
-        this.halfScreenHeight = screenHeight / 2;
-        this.halfScreenWidth = screenWidth / 2;
-
-        this.xLeft  = new int[screenHeight];
-        this.xRight = new int[screenHeight];
-        
-        this.zLeft = new float[screenHeight];
-        this.zRight = new float[screenHeight];
+        this.screenSize = screenHeight * screenWidth;
 
         this.screen = screen;
-        this.zBuffer = zBuffer;
-        this.msaaBuf = new int[screen.length];
+        this.zBuffer = new float[screenSize * 4];
+        this.msaaBuf = new int[screenSize * 4];
 
         //初始化三角形变换后的顶点
         updatedVertices = new FMatrix3[]{
@@ -217,62 +196,59 @@ public class Rasterizer {
         max_x = (int) Math.max(Math.max(v[0].a1, v[1].a1), v[2].a1);
         min_y = (int) Math.min(Math.min(v[0].a2, v[1].a2), v[2].a2);
         max_y = (int) Math.max(Math.max(v[0].a2, v[1].a2), v[2].a2);
-        min_x = Math.max(min_x, 0);
-        max_x = Math.min(max_x, screenWidth - 1);
-        min_y = Math.max(min_y, 0);
-        max_y = Math.min(max_y, screenHeight - 1);
+        min_x = MatrixHelper.clamp(min_x, 0, screenWidth - 1);
+        max_x = MatrixHelper.clamp(max_x, 0, screenWidth - 1);
+        min_y = MatrixHelper.clamp(min_y, 0, screenHeight - 1);
+        max_y = MatrixHelper.clamp(max_y, 0, screenHeight - 1);
 
 
         for(int x=min_x; x<=max_x; x++) {
             for(int y=min_y; y<=max_y; y++) {
                 // 4个子像素有几个在三角形内部
-                char s = 0;
-                if (insideTriangle(x + 0.25f, y + 0.25f)) ++s;
-                if (insideTriangle(x + 0.75f, y + 0.25f)) ++s;
-                if (insideTriangle(x + 0.25f, y + 0.75f)) ++s;
-                if (insideTriangle(x + 0.75f, y + 0.75f)) ++s;
-                int color = 0;
-                if (s > 0) {
-                    float z_interpolated = getInterpolatedZ(x, y);
 
-                    int ind = getIndex(x, y);
+                int orgColor = -1;
+                int s = 0;
+                // 检测4个子像素的深度是否在前面，如果有一个在就进行着色器的计算，
+                // 然后储存msaa子像素的颜色与深度
+                // 最后将4个像素压成一个
+                for(int i = 0; i < 4; ++i){
+                    float x1 = x + msaaOffsets[i][0];
+                    float y1 = y + msaaOffsets[i][1];
+                    if(!insideTriangle(x1,y1))
+                        continue;
+                    int ind = getMassIndex(x, y, i);
+                    float z_interpolated = getInterpolatedZ(x1, y1);
+                    if (zBuffer[ind] < z_interpolated)
+                        continue;
 
-                    List<FMatrix> params = vertexShaderResults[0].outParams==null ? null : getInterpolatedParams(x, y);
-                    int orgColor = nowShader.run(params);
-                    // 使用msaa，解决黑边策略：
-                    // s=4且更近就直接覆盖，更新z，颜色=新颜色，msaa_buf=4
-                    // s<4且更近就混合，更新z，颜色=(s/4)*新颜色 + (4-s)/4 * 旧颜色 ，msaa_buf=s
-                    // s=<4且更远不更新z，msaa_buf < 4 则 颜色=(4-msaa_buf/4)*新颜色 + msaa_buf/4 * 旧颜色
-                    //                   msaa_buf =4 则无动作
-                    // 旧颜色需要还原：旧颜色 = 旧颜色 / msaa_buf * 4
-
-                    int msaaColorRate = msaaBuf[ind];
-                    if (zBuffer[ind] < z_interpolated) {
-                        if (msaaColorRate >= 4)
-                            continue;
-                        else
-                            color = getAverageColor(colorMultiply(screen[ind], 4.0f / msaaColorRate), orgColor, msaaColorRate / 4.0);
+                    ++s;
+                    // 深度较浅，需要绘制
+                    if(orgColor == -1){
+                        List<FMatrix> params = vertexShaderResults[0].outParams==null ? null : getInterpolatedParams(x, y);
+                        orgColor = nowShader.run(params);
                     }
-                    else {
-                        zBuffer[ind] = z_interpolated;
-                        if (s == 4)
-                            color = orgColor;
-                        else {
-                            if (msaaColorRate == 0) {
-                                color = getAverageColor(orgColor, screen[ind], s / 4.0);
-                            }
-                            else {
-                                color = getAverageColor(orgColor, colorMultiply(screen[ind], 4.0 / msaaColorRate), s / 4.0);
-                            }
-
-                        }
-
-                        msaaBuf[ind] = s;
-                    }
-
-                    screen[ind] = color;
+                    zBuffer[ind] = z_interpolated;
+                    msaaBuf[ind] = orgColor;
 
                 }
+                if(s == 0)
+                    continue;
+
+                int ind = getIndex(x,y);
+
+                if(s == 4){
+                    screen[ind] = orgColor;
+                }else{
+                    int ind1 = getMassIndex(x, y, 0);
+                    int ind2 = getMassIndex(x, y, 1);
+                    int ind3 = getMassIndex(x, y, 2);
+                    int ind4 = getMassIndex(x, y, 3);
+                    int tmp1 = getAverageColor(msaaBuf[ind1], msaaBuf[ind2], 0.5);
+                    int tmp2 = getAverageColor(msaaBuf[ind3], msaaBuf[ind4], 0.5);
+                    int ans = getAverageColor(tmp1, tmp2, 0.5);
+                    screen[ind] = ans;
+                }
+
             }
         }
     }
@@ -349,6 +325,13 @@ public class Rasterizer {
         return (screenHeight-1-y)*screenWidth + x;
     }
 
+    private int getMassIndex(int x, int y, int i)
+    {
+        int dx = i & 1;
+        int dy = (i & 2) >> 1;
+        return (screenHeight * 2 - 1 - y * 2 - dy)*2*screenWidth + 2*x + dx;
+    }
+
     private int getAverageColor(int color1, int color2, double color1Ratio) {
         //return (int) (color1Ratio * color1 + (1 - color1Ratio) * color2);
         int r1 = (color1 & 0xff0000) >> 16;
@@ -403,6 +386,18 @@ public class Rasterizer {
         }
 
         return ans;
+    }
+
+    public void clearBuffer(){
+        // 重置缓冲区
+        zBuffer[0] = 50.0f;
+        int l = zBuffer.length;
+        for(int i = 1; i < l; i+=i)
+            System.arraycopy(zBuffer, 0, zBuffer, i, Math.min(l - i, i));
+
+        msaaBuf[0] = (50 << 16) | (50 << 8) | 50;
+        for(int i = 1; i < l; i+=i)
+            System.arraycopy(msaaBuf, 0, msaaBuf, i, Math.min(l - i, i));
     }
 
 }

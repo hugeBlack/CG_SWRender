@@ -37,6 +37,7 @@ public class Canvas extends JPanel {
     public int frameInterval;
     private BufferedImage screenBuffer;
     public LinkedList<RenderableObject> objects;
+    private boolean stopped = false;
 
     public Canvas(int screenWidth, int screenHeight, int frameInterval){
         this.frameInterval = frameInterval;
@@ -63,20 +64,19 @@ public class Canvas extends JPanel {
         FMatrix4[] myTriangle = new FMatrix4[3];
         VertexShaderResult[] vertexShaderResults = new VertexShaderResult[3];
 
-        Rasterizer r = new Rasterizer(640, 480, frameBuffer, depthBuffer);
+        Rasterizer r = new Rasterizer(640, 480, frameBuffer);
         r.triangleColor = 114514;
 
         while(true) {
+            if(stopped)
+                return;
+
             long renderStartTime = System.currentTimeMillis();
             triangleCount = 0;
-
-            // 重置缓冲区
-            depthBuffer[0] = 99999;
-            for(int i = 1; i < screenSize; i+=i)
-                System.arraycopy(depthBuffer, 0, depthBuffer, i, screenSize - i >= i ? i : screenSize - i);
-
             //更新视角
             Camera.update();
+
+            r.clearBuffer();
 
             // 设置背景色
             frameBuffer[0] = (50 << 16) | (50 << 8) | 50;
@@ -164,4 +164,7 @@ public class Canvas extends JPanel {
         }
     }
 
+    public void stopRender() {
+        this.stopped = true;
+    }
 }

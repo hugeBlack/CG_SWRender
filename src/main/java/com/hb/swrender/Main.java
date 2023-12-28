@@ -5,6 +5,8 @@ import com.hb.swrender.objects.square.SquareObject;
 import javax.swing.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 public class Main {
     public static void main(String[] args) {
@@ -79,6 +81,17 @@ public class Main {
 
             }
         });
+
+        window.addWindowListener(new WindowAdapter()
+                                 {
+                                     @Override
+                                     public void windowClosing(WindowEvent e)
+                                     {
+                                         System.out.println("Closed");
+                                         e.getWindow().dispose();
+                                         c.stopRender();
+                                     }
+                                 });
 
         window.setVisible(true);
         c.objects.add(new SquareObject());
