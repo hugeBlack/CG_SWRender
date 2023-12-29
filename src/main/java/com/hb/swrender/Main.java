@@ -1,6 +1,6 @@
 package com.hb.swrender;
 
-import com.hb.swrender.objects.square.SquareObject;
+import com.hb.swrender.objects.SquareObject;
 
 import javax.swing.*;
 import java.awt.event.KeyAdapter;

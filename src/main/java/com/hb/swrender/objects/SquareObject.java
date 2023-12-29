@@ -1,6 +1,7 @@
-package com.hb.swrender.objects.square;
+package com.hb.swrender.objects;
 
 import com.hb.swrender.shaders.*;
+import com.hb.swrender.utils.Vector3dHelper;
 import org.ejml.data.FMatrix3;
 import org.ejml.data.FMatrix4x4;
 import com.hb.swrender.objects.RenderableObject;
@@ -10,6 +11,7 @@ import java.util.LinkedList;
 public class SquareObject extends RenderableObject {
     private VertexBuffer[] myVBO;
     private int[] myVAO;
+
 
     private FMatrix4x4 modelMatrix;
 
@@ -41,8 +43,19 @@ public class SquareObject extends RenderableObject {
         myVBO[5].shaderParams.add(new FMatrix3(-1, 0.5f, -5));
 
         //myVAO = new int[]{0,2,3,0,1,2};
-        //myVAO = new int[]{0,1,2,3,4,5};
         myVAO = new int[]{2,1,0,5,4,3};
+
+        for(int i = 0; i < myVAO.length; i += 3){
+            FMatrix3 norm = Vector3dHelper.triangleNormCompute((FMatrix3) myVBO[myVAO[i]].shaderParams.get(0),
+                    (FMatrix3) myVBO[myVAO[i + 1]].shaderParams.get(0),
+                    (FMatrix3) myVBO[myVAO[i + 2]].shaderParams.get(0));
+
+            for(int j = 0; j < 3; ++j){
+                myVBO[myVAO[i+j]].shaderParams.add(norm);
+            }
+
+        }
+
         modelMatrix = new FMatrix4x4(1,0,0,0,
                 0,1,0,0,
                 0,0,1,0,
@@ -61,20 +74,17 @@ public class SquareObject extends RenderableObject {
 
     @Override
     public FragmentShader getFragmentShader(int i) {
-//        if(i == 0)
-//            return new SimpleFS(114514);
-//        else if(i == 1)
-//            return new SimpleFS(12179950);
-        return new GradientFS();
+        // return new GradientFS();
+        return new PhongFS();
     }
 
     @Override
     public VertexShader getVertexShader(int i) {
 //        return new SimpleVS(modelMatrix);
         return switch (i % 3) {
-            case 0 -> new GradientVS(modelMatrix, 255 << 16);
-            case 1 -> new GradientVS(modelMatrix, 255 << 8);
-            case 2 -> new GradientVS(modelMatrix, 255);
+            case 0 -> new PhongVS(modelMatrix, 255 << 16);
+            case 1 -> new PhongVS(modelMatrix, 255 << 8);
+            case 2 -> new PhongVS(modelMatrix, 255);
             default -> new GradientVS(modelMatrix, 114514);
         };
     }

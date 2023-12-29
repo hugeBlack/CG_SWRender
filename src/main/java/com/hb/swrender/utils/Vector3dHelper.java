@@ -1,6 +1,7 @@
 package com.hb.swrender.utils;
 
 import org.ejml.data.FMatrix3;
+import org.ejml.dense.fixed.CommonOps_FDF3;
 
 public class Vector3dHelper {
     //矢量在 vec.a1 vec.a2, vec.a3 轴上的分量
@@ -65,6 +66,30 @@ public class Vector3dHelper {
     public static FMatrix3 cross(FMatrix3 a, FMatrix3 b) {
         FMatrix3 ans = new FMatrix3(a.a2*b.a3 - a.a3*b.a2, a.a3*b.a1 - a.a1*b.a3, a.a1*b.a2 - a.a2*b.a1);
         return ans;
+    }
+
+    public static FMatrix3 reflect(FMatrix3 incident, FMatrix3 normal){
+        // I - 2.0 * dot(N, I) * N
+        float d = CommonOps_FDF3.dot(normal, incident);
+        float a = 2.0f * d;
+        FMatrix3 m = new FMatrix3();
+        CommonOps_FDF3.scale(a, normal, m);
+        FMatrix3 result = new FMatrix3();
+        CommonOps_FDF3.subtract(incident, m, result);
+        return result;
+    }
+
+    public static FMatrix3 triangleNormCompute(FMatrix3 v1, FMatrix3 v2, FMatrix3 v3){
+        FMatrix3 edge1 = new FMatrix3();
+        FMatrix3 edge2 = new FMatrix3();
+
+        edge1.setTo(v1);
+        CommonOps_FDF3.subtractEquals(edge1, v2);
+        edge2.setTo(v3);
+        CommonOps_FDF3.subtractEquals(edge2, v1);
+
+        FMatrix3 surfaceNormal = Vector3dHelper.cross(edge1, edge2);
+        return surfaceNormal;
     }
 
 }
