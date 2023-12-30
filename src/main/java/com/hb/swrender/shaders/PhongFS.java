@@ -14,7 +14,7 @@ import java.util.List;
 public class PhongFS extends FragmentShader{
 
     public static FMatrix3 lightColor = new FMatrix3(1,1,1);
-    public static FMatrix3 lightPos = new FMatrix3(0, 0, 5.0f);
+    public static FMatrix3 lightPos = new FMatrix3(2, 2, -1.0f);
 
     @Override
     public int run(List<FMatrix> params) {
@@ -67,7 +67,7 @@ public class PhongFS extends FragmentShader{
 
         // float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
         float t = Math.max(CommonOps_FDF3.dot(viewDir, reflectDir), 0.0f);
-        float spec = (float) Math.pow(t, 64);
+        float spec = (float) Math.pow(t, 100);
 
         // vec3 specular = specularStrength * spec * lightColor;
         FMatrix3 specular = new FMatrix3();

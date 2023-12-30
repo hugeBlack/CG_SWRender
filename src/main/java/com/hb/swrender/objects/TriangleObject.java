@@ -4,18 +4,17 @@ import com.hb.swrender.shaders.*;
 import com.hb.swrender.utils.Vector3dHelper;
 import org.ejml.data.FMatrix3;
 import org.ejml.data.FMatrix4x4;
-import com.hb.swrender.objects.RenderableObject;
 
 import java.util.LinkedList;
 
-public class SquareObject extends RenderableObject {
+public class TriangleObject extends RenderableObject {
     private VertexBuffer[] myVBO;
     private int[] myVAO;
 
 
     private FMatrix4x4 modelMatrix;
 
-    public SquareObject(){
+    public TriangleObject(){
         this.pos = new FMatrix3(0,0,1);
         myVBO = new VertexBuffer[6];
         for(int i = 0; i < 6; ++i){
@@ -43,7 +42,7 @@ public class SquareObject extends RenderableObject {
         myVBO[5].shaderParams.add(new FMatrix3(-1, 0.5f, -5));
 
         //myVAO = new int[]{0,2,3,0,1,2};
-        myVAO = new int[]{2,1,0,5,4,3};
+        myVAO = new int[]{5,4,3, 2,1,0};
 
         for(int i = 0; i < myVAO.length; i += 3){
             FMatrix3 norm = Vector3dHelper.triangleNormCompute((FMatrix3) myVBO[myVAO[i]].shaderParams.get(0),

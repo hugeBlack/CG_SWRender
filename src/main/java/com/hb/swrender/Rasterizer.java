@@ -74,6 +74,7 @@ public class Rasterizer {
         this.screen = screen;
         this.zBuffer = new float[screenSize * 4];
         this.msaaBuf = new int[screenSize * 4];
+        this.vertexShaderResults = new VertexShaderResult[3];
 
         //初始化三角形变换后的顶点
         updatedVertices = new FMatrix3[]{
@@ -103,32 +104,55 @@ public class Rasterizer {
     //光栅渲染器的入口
     public void rasterize(FMatrix4[] updatedPos, VertexShaderResult[] vertexShaderResults, FragmentShader fs){
         nowShader = fs;
-        this.vertexShaderResults = vertexShaderResults;
         float f1 = (zFar - zNear) / 2.0f;
         float f2 = (zFar + zNear) / 2.0f;
-        for(int i = 0; i < 3; ++i){
-            // 先变换到NDC
-            float w =updatedPos[i].a4;
-            updatedVertices[i].setTo(updatedPos[i].a1 / w,updatedPos[i].a2 / w, updatedPos[i].a3 / w);
-            vertexDepth[i] = 1.0f / updatedPos[i].a4;
+
+        // 变换到NDC之前先进行裁切
+        ArrayList<VertexShaderResult> clippedVertices = new ArrayList<>();
+        clippedVertices.add(vertexShaderResults[0]);
+        clippedVertices.add(vertexShaderResults[1]);
+        clippedVertices.add(vertexShaderResults[2]);
+        // 三个一组进行光栅化
+        ClipUtils.SutherlandHodgeman(clippedVertices);
+        int l = clippedVertices.size() - 3 + 1;
+//        if(l != 1){
+//            System.out.println("!!!");
+//        }
+        for(int id = 0; id < l; ++id){
+            this.vertexShaderResults[0] = clippedVertices.get(0);
+            this.vertexShaderResults[1] = clippedVertices.get(id + 1);
+            this.vertexShaderResults[2] = clippedVertices.get(id + 2);
+
+
+            for(int i = 0; i < 3; ++i){
+                // 先变换到NDC
+                float w = this.vertexShaderResults[i].computedPos.a4;
+//                updatedVertices[i].setTo(updatedPos[i].a1 / w,updatedPos[i].a2 / w, updatedPos[i].a3 / w);
+                updatedVertices[i].setTo(this.vertexShaderResults[i].computedPos.a1 / w,this.vertexShaderResults[i].computedPos.a2 / w, this.vertexShaderResults[i].computedPos.a3 / w);
+                // vertexDepth[i] = 1.0f / updatedPos[i].a4;
+            }
+
+            // 变换到视口
+            for(int i = 0; i < 3; ++i){
+                updatedVertices[i].setTo(
+                        0.5f*screenWidth*(updatedVertices[i].a1+1.0f),
+                        0.5f*screenHeight*(updatedVertices[i].a2+1.0f),
+                        -updatedVertices[i].a3 * f1 + f2);
+            }
+
+
+            //测试三角形是否该被渲染出来
+            if(testHidden() == true)
+                return;
+
+
+            // 光栅化&着色
+            scanTriangle();
+
         }
 
-        // 变换到视口
-        for(int i = 0; i < 3; ++i){
-            updatedVertices[i].setTo(
-                    0.5f*screenWidth*(updatedVertices[i].a1+1.0f),
-                    0.5f*screenHeight*(updatedVertices[i].a2+1.0f),
-                    -updatedVertices[i].a3 * f1 + f2);
-        }
 
 
-        //测试三角形是否该被渲染出来
-        if(testHidden() == true)
-            return;
-
-
-        // 光栅化&着色
-        scanTriangle();
     }
 
 
@@ -137,25 +161,14 @@ public class Rasterizer {
         //测试 1: 如果三角形的顶点全部在Z裁剪平面后面，则这个三角形可视为隐藏面
         boolean allBehindClippingPlane = true;
         for(int i = 0; i < 3; i++) {
-            if(updatedVertices[i].a3 < zFar) {
+            if(updatedVertices[i].a3 >= zNear) {
                 allBehindClippingPlane = false;
                 break;
+            }else{
+                System.out.println(1);
             }
         }
         if(allBehindClippingPlane)
-            return true;
-
-        //测试 2: 计算三角形表面法线向量并检查其是否朝向视角
-        edge1.setTo(updatedVertices[1]);
-        CommonOps_FDF3.subtractEquals(edge1, updatedVertices[0]);
-        edge2.setTo(updatedVertices[2]);
-        CommonOps_FDF3.subtractEquals(edge2, updatedVertices[0]);
-
-        surfaceNormal = Vector3dHelper.cross(edge1, edge2);
-
-        float dotProduct  = CommonOps_FDF3.dot(surfaceNormal, updatedVertices[0]);
-        //如果不朝向视角， 则这个三角形可视为隐藏面
-        if(dotProduct >= 0)
             return true;
 
         //测试 3: 判断三角形是否在屏幕外
@@ -313,10 +326,7 @@ public class Rasterizer {
         float alpha = b.a1;
         float beta = b.a2;
         float gamma = b.a3;
-        float w_reciprocal = 1.0f/(alpha / vertexDepth[0] + beta / vertexDepth[1] + gamma / vertexDepth[2]);
-        float z_interpolated = alpha * updatedVertices[0].a3 / vertexDepth[0] + beta * updatedVertices[1].a3 / vertexDepth[1] + gamma * updatedVertices[2].a3 / vertexDepth[2];
-        z_interpolated *= w_reciprocal;
-
+        float z_interpolated = alpha * updatedVertices[0].a3 + beta * updatedVertices[1].a3  + gamma * updatedVertices[2].a3;
         return z_interpolated;
     }
 

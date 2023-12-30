@@ -1,6 +1,7 @@
 package com.hb.swrender;
 
-import com.hb.swrender.objects.SquareObject;
+import com.hb.swrender.objects.ObjModel;
+import com.hb.swrender.objects.TriangleObject;
 
 import javax.swing.*;
 import java.awt.event.KeyAdapter;
@@ -94,7 +95,14 @@ public class Main {
                                  });
 
         window.setVisible(true);
-        c.objects.add(new SquareObject());
+        c.objects.add(new TriangleObject());
+        ObjModel cube = new ObjModel("assets/cube.obj");
+        c.objects.add(cube);
+
+        ObjModel cube2 = new ObjModel("assets/cube.obj");
+        c.objects.add(cube2);
+        cube2.setPos(3, 0, 0);
+
         c.startPaint();
 
     }
