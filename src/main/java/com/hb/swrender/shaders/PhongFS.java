@@ -13,8 +13,8 @@ import java.util.List;
 
 public class PhongFS extends FragmentShader{
 
-    public static FMatrix3 lightColor = new FMatrix3(1,1,1);
-    public static FMatrix3 lightPos = new FMatrix3(2, 2, -1.0f);
+    public FMatrix3 lightColor = new FMatrix3(1,1,1);
+    public FMatrix3 lightPos = new FMatrix3(2, 2, -1.0f);
 
     @Override
     public int run(List<FMatrix> params) {

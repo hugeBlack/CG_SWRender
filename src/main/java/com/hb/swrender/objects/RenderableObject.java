@@ -18,4 +18,8 @@ public abstract class RenderableObject {
     // 获得第VBO中第i个顶点的要使用的顶点着色器
     public abstract VertexShader getVertexShader(int i);
 
+    public void onClick(){
+
+    }
+
 }

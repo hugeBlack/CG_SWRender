@@ -25,8 +25,8 @@ public class ObjModel extends RenderableObject{
                                                                           0,0,1,0,
                                                                           0,0,0,1);
 
-    private FragmentShader cachedFS = new PhongFS();
-    private VertexShader cachedVS = new PhongObjectVS(modelMatrix);
+    protected FragmentShader cachedFS = new PhongFS();
+    protected VertexShader cachedVS = new PhongObjectVS(modelMatrix);
 
     public ObjModel (String filePath) {
 

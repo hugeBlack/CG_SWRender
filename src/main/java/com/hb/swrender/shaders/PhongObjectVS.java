@@ -13,7 +13,7 @@ import java.util.List;
 public class PhongObjectVS extends VertexShader{
 
     private FMatrix4x4 worldPos;
-    private FMatrix3 color;
+    public FMatrix3 color;
     // 按照普通的投影几何将当前顶点转换到裁切空间
     public PhongObjectVS(FMatrix4x4 worldPos){
         this.worldPos = worldPos;

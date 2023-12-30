@@ -10,6 +10,8 @@ import com.hb.swrender.shaders.VertexBuffer;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.io.File;
@@ -25,6 +27,7 @@ public class Canvas extends JPanel {
     
     public float[] depthBuffer;
     public int[] frameBuffer;
+    public RenderableObject[] frameObjectBuffer;
     public int triangleCount;
     private int frameIndex;
 
@@ -48,10 +51,23 @@ public class Canvas extends JPanel {
         this.screenSize = screenWidth * screenHeight;
         depthBuffer = new float[screenSize];
         frameBuffer = new int[screenSize];
+        frameObjectBuffer = new RenderableObject[screenSize];
         screenBuffer = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB);;
         this.objects = new LinkedList<>();
         setSize(screenWidth, screenHeight);
 
+        this.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int x = e.getX();
+                int y = e.getY();
+                int ind = y*screenWidth + x;
+                RenderableObject obj =  frameObjectBuffer[ind];
+                if(obj == null)
+                    return;
+                obj.onClick();
+            }
+        });
 
     }
 
@@ -60,12 +76,9 @@ public class Canvas extends JPanel {
         QueryTable.init();
         Camera.init(0,0,5);
 
-
-        FMatrix4[] myTriangle = new FMatrix4[3];
         VertexShaderResult[] vertexShaderResults = new VertexShaderResult[3];
 
-        Rasterizer r = new Rasterizer(640, 480, frameBuffer);
-        r.triangleColor = 114514;
+        Rasterizer r = new Rasterizer(640, 480, frameBuffer, frameObjectBuffer);
 
         while(true) {
             if(stopped)
@@ -82,6 +95,9 @@ public class Canvas extends JPanel {
             frameBuffer[0] = (50 << 16) | (50 << 8) | 50;
             for(int i = 1; i < screenSize; i+=i)
                 System.arraycopy(frameBuffer, 0, frameBuffer, i, screenSize - i >= i ? i : screenSize - i);
+            frameObjectBuffer[0] = null;
+            for(int i = 1; i < screenSize; i+=i)
+                System.arraycopy(frameObjectBuffer, 0, frameObjectBuffer, i, screenSize - i >= i ? i : screenSize - i);
 
             // 流程：1. 从RenderableObjects中去取出其VAO，按照三个一组获取其VBO中对应的顶点，调用其所需的着色器，
             // 然后将着色后的三个顶点与其对应的像素着色器丢给Rasterizer进行光栅化
@@ -103,15 +119,11 @@ public class Canvas extends JPanel {
                             vsResultBuffer[thisVAO[offset + j]] = new VertexShaderResult(ans, vs.result);
                         }
                     }
-
-                    myTriangle[0] = vsResultBuffer[thisVAO[offset]].computedPos;
-                    myTriangle[1] = vsResultBuffer[thisVAO[offset + 1]].computedPos;
-                    myTriangle[2] = vsResultBuffer[thisVAO[offset + 2]].computedPos;
                     vertexShaderResults[0] = vsResultBuffer[thisVAO[offset]];
                     vertexShaderResults[1] = vsResultBuffer[thisVAO[offset + 1]];
                     vertexShaderResults[2] = vsResultBuffer[thisVAO[offset + 2]];
 
-                    r.rasterize(myTriangle, vertexShaderResults, object.getFragmentShader(i));
+                    r.rasterize(object, vertexShaderResults, object.getFragmentShader(i));
                 }
             }
 

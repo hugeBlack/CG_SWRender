@@ -1,5 +1,6 @@
 package com.hb.swrender;
 
+import com.hb.swrender.objects.RenderableObject;
 import com.hb.swrender.shaders.FragmentShader;
 import com.hb.swrender.shaders.VertexShaderResult;
 import com.hb.swrender.utils.MatrixHelper;
@@ -42,8 +43,6 @@ public class Rasterizer {
     //三角形的最高和最低, 最左和最右的位置
     public float leftMostPosition, rightMostPosition, upperMostPosition, lowerMostPosition;
 
-    //三角形的颜色
-    public int triangleColor;
     //Z裁剪平面离视角原点的距离
     public float zNear = 0.1f;
     public float zFar;
@@ -66,7 +65,11 @@ public class Rasterizer {
     };
     private FragmentShader nowShader;
 
-    public Rasterizer(int screenWidth, int screenHeight, int[] screen){
+    private RenderableObject[] frameObjectBuffer;
+    private RenderableObject currentObject;
+
+    public Rasterizer(int screenWidth, int screenHeight, int[] screen, RenderableObject[] frameObjectBuffer){
+        this.frameObjectBuffer = frameObjectBuffer;
         this.screenHeight = screenHeight;
         this.screenWidth = screenWidth;
         this.screenSize = screenHeight * screenWidth;
@@ -102,10 +105,11 @@ public class Rasterizer {
     }
 
     //光栅渲染器的入口
-    public void rasterize(FMatrix4[] updatedPos, VertexShaderResult[] vertexShaderResults, FragmentShader fs){
+    public void rasterize(RenderableObject currentObject, VertexShaderResult[] vertexShaderResults, FragmentShader fs){
         nowShader = fs;
         float f1 = (zFar - zNear) / 2.0f;
         float f2 = (zFar + zNear) / 2.0f;
+        this.currentObject = currentObject;
 
         // 变换到NDC之前先进行裁切
         ArrayList<VertexShaderResult> clippedVertices = new ArrayList<>();
@@ -115,9 +119,7 @@ public class Rasterizer {
         // 三个一组进行光栅化
         ClipUtils.SutherlandHodgeman(clippedVertices);
         int l = clippedVertices.size() - 3 + 1;
-//        if(l != 1){
-//            System.out.println("!!!");
-//        }
+
         for(int id = 0; id < l; ++id){
             this.vertexShaderResults[0] = clippedVertices.get(0);
             this.vertexShaderResults[1] = clippedVertices.get(id + 1);
@@ -261,6 +263,7 @@ public class Rasterizer {
                     int ans = getAverageColor(tmp1, tmp2, 0.5);
                     screen[ind] = ans;
                 }
+                frameObjectBuffer[ind] = currentObject;
 
             }
         }
@@ -278,7 +281,7 @@ public class Rasterizer {
                 0, 0, (f+n)/(n-f), 2*f*n/(f-n),
                 0, 0, 1, 0);
 
-        System.out.println(ans);
+//        System.out.println(ans);
         return ans;
     }
 

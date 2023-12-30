@@ -129,7 +129,7 @@ public class Camera {
         if(MOVE_DOWN){
             position.a2 -= moveSpeed;
         }
-        System.out.println("x=" + position.a1 + ",y=" + position.a2 + ",z=" + position.a3);
+//        System.out.println("x=" + position.a1 + ",y=" + position.a2 + ",z=" + position.a3);
 
         updateRotationMatrix();
     }

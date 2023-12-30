@@ -20,14 +20,6 @@ public class TriangleObject extends RenderableObject {
         for(int i = 0; i < 6; ++i){
             myVBO[i] = new VertexBuffer();
         }
-//        myVBO[0].shaderParams = new LinkedList<>();
-//        myVBO[0].shaderParams.add(new FMatrix3(0,0,0));
-//        myVBO[1].shaderParams = new LinkedList<>();
-//        myVBO[1].shaderParams.add(new FMatrix3(1,0,0));
-//        myVBO[2].shaderParams = new LinkedList<>();
-//        myVBO[2].shaderParams.add(new FMatrix3(1,1,0));
-//        myVBO[3].shaderParams = new LinkedList<>();
-//        myVBO[3].shaderParams.add(new FMatrix3(0,1,0));
         myVBO[0].shaderParams = new LinkedList<>();
         myVBO[0].shaderParams.add(new FMatrix3(2, 0, -2));
         myVBO[1].shaderParams = new LinkedList<>();
@@ -86,5 +78,10 @@ public class TriangleObject extends RenderableObject {
             case 2 -> new PhongVS(modelMatrix, 255);
             default -> new GradientVS(modelMatrix, 114514);
         };
+    }
+
+    @Override
+    public void onClick(){
+        System.out.println("CLICKED!");
     }
 }

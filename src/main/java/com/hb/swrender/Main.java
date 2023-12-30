@@ -1,5 +1,6 @@
 package com.hb.swrender;
 
+import com.hb.swrender.objects.CubeObject;
 import com.hb.swrender.objects.ObjModel;
 import com.hb.swrender.objects.TriangleObject;
 
@@ -32,7 +33,7 @@ public class Main {
                     Camera.SLIDE_RIGHT = true;
                 else if(e.getKeyChar() == ' ' || e.getKeyChar() == ' ')
                     Camera.MOVE_UP = true;
-                else if(e.getKeyChar() == 'z' || e.getKeyChar() == 'Z')
+                else if(e.getKeyChar() == 'x' || e.getKeyChar() == 'X')
                     Camera.MOVE_DOWN = true;
 
 
@@ -61,7 +62,7 @@ public class Main {
                     Camera.SLIDE_RIGHT = false;
                 else if(e.getKeyChar() == ' ' || e.getKeyChar() == ' ')
                     Camera.MOVE_UP = false;
-                else if(e.getKeyChar() == 'z' || e.getKeyChar() == 'Z')
+                else if(e.getKeyChar() == 'x' || e.getKeyChar() == 'X')
                     Camera.MOVE_DOWN = false;
 
 
@@ -96,10 +97,10 @@ public class Main {
 
         window.setVisible(true);
         c.objects.add(new TriangleObject());
-        ObjModel cube = new ObjModel("assets/cube.obj");
+        CubeObject cube = new CubeObject();
         c.objects.add(cube);
 
-        ObjModel cube2 = new ObjModel("assets/cube.obj");
+        CubeObject cube2 = new CubeObject();
         c.objects.add(cube2);
         cube2.setPos(3, 0, 0);
 
